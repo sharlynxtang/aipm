@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  models: read
 
 jobs:
   digest:
@@ -33,5 +32,7 @@ jobs:
       - name: Send daily briefing
         env:
           FEISHU_WEBHOOK_TOKEN: ${{ secrets.FEISHU_WEBHOOK_TOKEN }}
-          GITHUB_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DIGEST_LLM_API_URL: ${{ vars.DIGEST_LLM_API_URL }}
+          DIGEST_LLM_MODEL: ${{ vars.DIGEST_LLM_MODEL }}
         run: python -m ai_digest --send

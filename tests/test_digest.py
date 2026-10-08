@@ -91,7 +91,7 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(main(["--fixture-dir", str(FIXTURES), "--config", str(FIXTURES / "sources.json"), "--now", NOW.isoformat()]), 0)
 
     def test_manual_send_pushes_even_when_no_new_items(self):
-        with patch("ai_digest.cli.fetch_source", return_value=[]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token"}):
+        with patch("ai_digest.cli.fetch_source", return_value=[]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token", "OPENAI_API_KEY": "test-model-token"}):
             code = main(["--send", "--config", str(FIXTURES / "sources.json"), "--now", NOW.isoformat()])
         self.assertEqual(code, 0)
         self.assertEqual(send.call_count, 1)
@@ -100,10 +100,23 @@ class FeedTests(unittest.TestCase):
     def test_send_stops_when_any_summary_is_missing(self):
         source = Source("news", "News", "news", "CN", "https://example.com/news")
         item = parse_feed((FIXTURES / "sample_news.xml").read_bytes(), source)[0]
-        with patch("ai_digest.cli.fetch_source", return_value=[item]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token", "GITHUB_TOKEN": "test-model-token"}), patch("ai_digest.cli.summarize_items", side_effect=SummaryError("incomplete")):
+        with patch("ai_digest.cli.fetch_source", return_value=[item]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token", "OPENAI_API_KEY": "test-model-token"}), patch("ai_digest.cli.summarize_items", side_effect=SummaryError("incomplete")):
             code = main(["--send", "--config", str(FIXTURES / "sources.json"), "--now", NOW.isoformat()])
         self.assertEqual(code, 2)
         send.assert_not_called()
+
+    def test_send_requires_model_key_and_includes_chinese_summary(self):
+        source = Source("news", "News", "news", "CN", "https://example.com/news")
+        item = parse_feed((FIXTURES / "sample_news.xml").read_bytes(), source)[0]
+        args = ["--send", "--config", str(FIXTURES / "sources.json"), "--now", NOW.isoformat()]
+        with patch("ai_digest.cli.fetch_source", return_value=[item]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token"}, clear=True):
+            self.assertEqual(main(args), 2)
+            send.assert_not_called()
+        translated = replace(item, chinese_summary="该资讯介绍开源模型的新智能体工具及其产品集成。")
+        with patch("ai_digest.cli.fetch_source", return_value=[item]), patch("ai_digest.cli.summarize_items", return_value=[translated]) as summarize, patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token", "OPENAI_API_KEY": "test-model-token"}, clear=True):
+            self.assertEqual(main(args), 0)
+        summarize.assert_called_once()
+        self.assertIn("摘要：该资讯介绍开源模型的新智能体工具及其产品集成。", send.call_args.args[1])
 
     def test_complete_chinese_summaries_are_rendered_under_each_item(self):
         news = Source("news", "News", "news", "CN", "https://example.com/news")
@@ -147,8 +160,7 @@ class SummaryTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with patch("ai_digest.summarize.ENDPOINT", f"http://127.0.0.1:{server.server_port}/summarize"):
-                enriched = summarize_items([item], "test-model-token")
+            enriched = summarize_items([item], "test-model-token", endpoint=f"http://127.0.0.1:{server.server_port}/summarize")
             self.assertEqual(enriched[0].chinese_summary, "该论文评测开源权重模型的推理成本。")
             self.assertEqual(Handler.received["authorization"], "Bearer test-model-token")
             evidence = json.loads(Handler.received["body"]["messages"][1]["content"])

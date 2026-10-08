@@ -1,4 +1,4 @@
-"""Grounded Chinese summaries using GitHub Models with the Actions token."""
+"""Grounded Chinese summaries using a configurable chat-completions API."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ import json
 import re
 import time
 from dataclasses import replace
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from .core import Item
 
 
-ENDPOINT = "https://models.github.ai/inference/chat/completions"
-MODEL = "openai/gpt-4o-mini"
+ENDPOINT = "https://api.openai.com/v1/chat/completions"
+MODEL = "gpt-4o-mini"
 
 
 class SummaryError(Exception):
@@ -39,18 +39,19 @@ def _validate(payload: object, count: int) -> list[str]:
     return [result[index] for index in range(count)]
 
 
-def summarize_items(items: list[Item], token: str) -> list[Item]:
+def summarize_items(items: list[Item], token: str, endpoint: str = ENDPOINT, model: str = MODEL) -> list[Item]:
     if not items:
         return items
     if not token:
-        raise SummaryError("GITHUB_TOKEN is required to generate Chinese summaries")
+        raise SummaryError("OPENAI_API_KEY is required to generate Chinese summaries")
     source_data = [
         {"id": index, "source": item.source.name, "title": item.title, "excerpt": item.summary[:400]}
         for index, item in enumerate(items)
     ]
     request_data = {
-        "model": MODEL,
+        "model": model,
         "temperature": 0,
+        "max_tokens": 2000,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": (
@@ -64,7 +65,7 @@ def summarize_items(items: list[Item], token: str) -> list[Item]:
         ],
     }
     request = Request(
-        ENDPOINT,
+        endpoint,
         data=json.dumps(request_data, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"},
         method="POST",
@@ -75,27 +76,26 @@ def summarize_items(items: list[Item], token: str) -> list[Item]:
                 body = response.read(1_000_001)
                 content_type = response.headers.get("Content-Type", "unknown").split(";", 1)[0]
                 if len(body) > 1_000_000:
-                    raise SummaryError("GitHub Models response exceeded 1 MB")
+                    raise SummaryError("model response exceeded 1 MB")
                 try:
                     result = json.loads(body)
                 except ValueError:
-                    marker = body.hex() if len(body) <= 8 else "long response"
-                    raise SummaryError(f"GitHub Models returned non-JSON content ({content_type}, {len(body)} bytes, marker {marker})") from None
+                    raise SummaryError(f"model returned non-JSON content ({content_type}, {len(body)} bytes)") from None
             break
         except HTTPError as error:
             if error.code in {429, 500, 502, 503, 504} and attempt == 0:
                 time.sleep(2)
                 continue
-            raise SummaryError(f"GitHub Models request failed (HTTP {error.code})") from None
+            raise SummaryError(f"model request failed (HTTP {error.code})") from None
         except OSError as error:
             if attempt == 0:
                 time.sleep(2)
                 continue
             reason = str(getattr(error, "reason", error)).replace(token, "[redacted]")[:160]
-            raise SummaryError(f"GitHub Models request failed ({type(error).__name__}: {reason})") from None
+            raise SummaryError(f"model request failed ({type(error).__name__}: {reason})") from None
     try:
         content = result["choices"][0]["message"]["content"]
         summaries = _validate(json.loads(content), len(items))
     except (KeyError, IndexError, TypeError, ValueError) as error:
-        raise SummaryError("GitHub Models returned an invalid response") from error
+        raise SummaryError("model returned an invalid response") from error
     return [replace(item, chinese_summary=summary) for item, summary in zip(items, summaries)]

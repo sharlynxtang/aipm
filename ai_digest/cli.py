@@ -12,7 +12,7 @@ from pathlib import Path
 from .core import fetch_source, load_sources, select_items
 from .feishu import send_card, webhook_url
 from .report import render_report
-from .summarize import SummaryError, summarize_items
+from .summarize import ENDPOINT, MODEL, SummaryError, summarize_items
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "sources.json"
@@ -60,10 +60,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.send and not token:
         print("FEISHU_WEBHOOK_TOKEN is required for --send.", file=sys.stderr)
         return 2
-    model_token = os.environ.get("GITHUB_TOKEN")
+    model_token = os.environ.get("OPENAI_API_KEY")
+    if args.send and not model_token:
+        message = "OPENAI_API_KEY is required to generate Chinese summaries; no digest was sent."
+        print(message, file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::error::{message}")
+        return 2
     if selected and (args.send or model_token):
         try:
-            selected = summarize_items(selected, model_token or "")
+            selected = summarize_items(
+                selected, model_token or "",
+                endpoint=os.environ.get("DIGEST_LLM_API_URL") or ENDPOINT,
+                model=os.environ.get("DIGEST_LLM_MODEL") or MODEL,
+            )
         except SummaryError as error:
             print(f"Chinese summaries failed; no digest was sent: {error}", file=sys.stderr)
             if os.environ.get("GITHUB_ACTIONS"):
