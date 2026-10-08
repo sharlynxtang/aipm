@@ -1,36 +1,22 @@
-name: Daily AI digest
+name: One-time holiday AI briefing
 
 on:
-  schedule:
-    # 11:00 China/Singapore time. GitHub may start scheduled runs late.
-    - cron: '0 3 * * *'
-  workflow_dispatch:
   push:
-    # An explicit tag push can trigger a delivery when GitHub API access is unavailable.
     tags:
-      - 'run-digest-*'
+      - 'run-digest-holiday-*'
 
 permissions:
   contents: read
 
 jobs:
-  digest:
+  holiday-digest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check delivery credential
+      - name: Send reviewed October 1-7 briefing
         env:
           FEISHU_WEBHOOK_TOKEN: ${{ secrets.FEISHU_WEBHOOK_TOKEN }}
-        run: |
-          if [ -z "$FEISHU_WEBHOOK_TOKEN" ]; then
-            echo '::error::FEISHU_WEBHOOK_TOKEN is missing from GitHub Actions secrets.'
-            exit 1
-          fi
-      - name: Send daily briefing
-        env:
-          FEISHU_WEBHOOK_TOKEN: ${{ secrets.FEISHU_WEBHOOK_TOKEN }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: python -m ai_digest --send
+        run: python holiday_once.py --send
