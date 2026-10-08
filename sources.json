@@ -7,13 +7,6 @@
     "url": "https://www.qbitai.com/feed"
   },
   {
-    "id": "36kr",
-    "name": "36氪",
-    "category": "news",
-    "region": "CN",
-    "url": "https://36kr.com/feed"
-  },
-  {
     "id": "techcrunch_ai",
     "name": "TechCrunch AI",
     "category": "news",

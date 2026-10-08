@@ -19,7 +19,7 @@ python3 -m unittest discover -s tests -v
 
 ## 数据源与筛选
 
-[`sources.json`](sources.json) 配置了量子位、36氪、TechCrunch AI、MIT Technology Review、Hugging Face、Latent Space、arXiv、NeurIPS 官方博客。每个来源要提供带发布日期的 RSS 或 Atom 条目。项目只抓取标题、摘要和原文链接，不抓取或转载全文。来源若无新条目则不会出现在当日报告中。采集失败会在报告末尾标出；全部失败则不会发送。
+[`sources.json`](sources.json) 配置了量子位、TechCrunch AI、MIT Technology Review、Hugging Face、Latent Space、arXiv、NeurIPS 官方博客。每个来源要提供带发布日期的 RSS 或 Atom 条目。项目只抓取标题、摘要和原文链接，不抓取或转载全文。来源若无新条目则不会出现在当日报告中。采集失败会在报告末尾标出；全部失败则不会发送。
 
 默认窗口为最近 48 小时，最多 10 条，每个来源最多 2 条，并优先给中国新闻、海外新闻、官方消息、论文、播客、会议各留一个位置。没有符合条件的新条目时发送空日报；全部来源失败时不发送。`--hours`、`--limit` 可以调整。分类和排序是规则筛选，尚未做模型生成的深度分析或事实核查。
 
@@ -34,4 +34,4 @@ python3 -m ai_digest --fixture-dir tests/fixtures --config tests/fixtures/source
 python3 -m ai_digest
 ```
 
-第三条命令访问真实来源。云环境需允许访问 `www.qbitai.com`、`36kr.com`、`techcrunch.com`、`www.technologyreview.com`、`huggingface.co`、`www.latent.space`、`export.arxiv.org` 和 `blog.neurips.cc`；发送还需 `open.feishu.cn`。Webhook token 缺失时仍可预览日报。
+第三条命令访问真实来源。云环境需允许访问 `www.qbitai.com`、`techcrunch.com`、`www.technologyreview.com`、`huggingface.co`、`www.latent.space`、`export.arxiv.org` 和 `blog.neurips.cc`；发送还需 `open.feishu.cn`。Webhook token 缺失时仍可预览日报。
