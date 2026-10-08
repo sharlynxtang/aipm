@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<title>示例论文</title>
+<entry><title>Evaluating open weight models for inference</title><link href="https://example.com/paper" rel="alternate"/><published>2026-10-07T10:00:00Z</published><summary>Benchmark of model inference costs.</summary></entry>
+</feed>

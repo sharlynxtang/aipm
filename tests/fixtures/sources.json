@@ -1,0 +1,16 @@
+[
+  {
+    "id": "sample_news",
+    "name": "示例中国新闻",
+    "category": "news",
+    "region": "CN",
+    "url": "https://example.com/news.xml"
+  },
+  {
+    "id": "sample_paper",
+    "name": "示例论文",
+    "category": "paper",
+    "region": "GLOBAL",
+    "url": "https://example.com/papers.xml"
+  }
+]

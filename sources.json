@@ -1,0 +1,58 @@
+[
+  {
+    "id": "qbitai",
+    "name": "量子位",
+    "category": "news",
+    "region": "CN",
+    "url": "https://www.qbitai.com/feed"
+  },
+  {
+    "id": "36kr",
+    "name": "36氪",
+    "category": "news",
+    "region": "CN",
+    "url": "https://36kr.com/feed"
+  },
+  {
+    "id": "techcrunch_ai",
+    "name": "TechCrunch AI",
+    "category": "news",
+    "region": "GLOBAL",
+    "url": "https://techcrunch.com/category/artificial-intelligence/feed/"
+  },
+  {
+    "id": "mit_technology_review",
+    "name": "MIT Technology Review",
+    "category": "news",
+    "region": "GLOBAL",
+    "url": "https://www.technologyreview.com/feed/"
+  },
+  {
+    "id": "huggingface",
+    "name": "Hugging Face Blog",
+    "category": "official",
+    "region": "GLOBAL",
+    "url": "https://huggingface.co/blog/feed.xml"
+  },
+  {
+    "id": "latent_space",
+    "name": "Latent Space（播客与分析）",
+    "category": "podcast",
+    "region": "GLOBAL",
+    "url": "https://www.latent.space/feed"
+  },
+  {
+    "id": "arxiv_ai",
+    "name": "arXiv cs.AI / cs.CL / cs.LG",
+    "category": "paper",
+    "region": "GLOBAL",
+    "url": "https://export.arxiv.org/api/query?search_query=cat%3Acs.AI+OR+cat%3Acs.CL+OR+cat%3Acs.LG&sortBy=submittedDate&sortOrder=descending&max_results=100"
+  },
+  {
+    "id": "neurips_blog",
+    "name": "NeurIPS Blog",
+    "category": "conference",
+    "region": "GLOBAL",
+    "url": "https://blog.neurips.cc/feed/"
+  }
+]
