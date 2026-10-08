@@ -24,7 +24,7 @@ SIGNALS = {
     "产品与智能体": ("agent", "agents", "assistant", "workflow", "应用", "产品", "智能体", "助手", "多模态"),
     "成本与部署": ("inference", "latency", "pricing", "cost", "deploy", "推理", "延迟", "价格", "成本", "部署", "量化"),
     "竞争与政策": ("funding", "acquisition", "regulation", "policy", "market", "融资", "收购", "监管", "政策", "市场"),
-    "模型与评测": ("model", "benchmark", "evaluation", "research", "模型", "基准", "评测", "论文", "训练"),
+    "评测与训练": ("benchmark", "evaluation", "evals", "training", "fine-tuning", "finetuning", "基准", "评测", "训练", "微调"),
 }
 AI_TERMS = ("人工智能", "大模型", "生成式", "机器学习", "openai", "anthropic", "chatgpt", "llm", "agent", "deepseek", "qwen", "模型", "model", "hugging face")
 
@@ -47,6 +47,7 @@ class Item:
     summary: str
     signals: tuple[str, ...]
     score: int
+    guid: str = ""
 
 
 class _Text(HTMLParser):
@@ -94,13 +95,17 @@ def _atom_link(node: ET.Element) -> str:
 def classify(title: str, summary: str, category: str) -> tuple[tuple[str, ...], int]:
     title_low = title.casefold()
     text_low = f"{title} {summary}".casefold()
-    matched = tuple(label for label, keywords in SIGNALS.items() if any(word in text_low for word in keywords))
+    matched = [label for label, keywords in SIGNALS.items() if any(word in text_low for word in keywords)]
+    if category == "release" and "开源与生态" not in matched:
+        matched.insert(0, "开源与生态")
     title_hits = sum(any(word in title_low for word in words) for words in SIGNALS.values())
-    base = {"official": 4, "paper": 2, "conference": 3, "news": 1, "podcast": 2}[category]
-    return matched, base + 2 * title_hits + len(matched)
+    base = {"release": 5, "official": 4, "paper": 2, "conference": 3, "news": 1, "podcast": 2}[category]
+    return tuple(matched), base + 2 * title_hits + len(matched)
 
 
 def is_relevant(item: Item) -> bool:
+    if item.source.category == "release":
+        return not bool(re.search(r"(?i)(?:-?rc\d*|-?alpha\d*|-?beta\d*|\.dev\d*|release candidate)\b", item.title))
     if item.source.category != "news":
         return True  # These feeds have a specific AI, paper, podcast, or conference remit.
     text = f"{item.title} {item.summary}".casefold()
@@ -125,8 +130,9 @@ def parse_feed(payload: bytes, source: Source) -> list[Item]:
         published = parse_date(date_text)
         if not title or not url.startswith("https://") or published is None:
             continue
+        guid = _field(entry, f"{ATOM}id" if atom else "guid")
         signals, score = classify(title, summary, source.category)
-        items.append(Item(source, title, url, published, summary, signals, score))
+        items.append(Item(source, title, url, published, summary, signals, score, guid))
     return items
 
 
@@ -138,7 +144,7 @@ def load_sources(path: Path) -> list[Source]:
     if len({s.id for s in sources}) != len(sources):
         raise ValueError("source IDs must be unique")
     for source in sources:
-        if source.category not in {"official", "paper", "conference", "news", "podcast"}:
+        if source.category not in {"release", "official", "paper", "conference", "news", "podcast"}:
             raise ValueError(f"invalid category: {source.category}")
         if source.region not in {"CN", "GLOBAL"} or urlsplit(source.url).scheme != "https":
             raise ValueError(f"invalid region or URL: {source.id}")
@@ -171,34 +177,50 @@ def select_items(items: list[Item], now: datetime, hours: int = 48, limit: int =
     unique: list[Item] = []
     seen_urls: set[str] = set()
     seen_titles: set[str] = set()
+    seen_guids: set[tuple[str, str]] = set()
     for item in eligible:
         title_key = re.sub(r"\W+", "", item.title.casefold())
         url_key = canonical_url(item.url)
-        if url_key in seen_urls or title_key in seen_titles:
+        guid_key = (item.source.id, item.guid)
+        if url_key in seen_urls or title_key in seen_titles or (item.guid and guid_key in seen_guids):
             continue
         seen_urls.add(url_key)
         seen_titles.add(title_key)
+        if item.guid:
+            seen_guids.add(guid_key)
         unique.append(item)
 
     selected: list[Item] = []
     used: set[Item] = set()
+    category_caps = {"news": 4, "release": 3, "official": 2, "paper": 2, "podcast": 2, "conference": 1}
+
+    def has_room(item: Item) -> bool:
+        source_cap = 1 if item.source.category == "release" else 2
+        return (
+            item not in used
+            and len(selected) < limit
+            and sum(chosen.source.id == item.source.id for chosen in selected) < source_cap
+            and sum(chosen.source.category == item.source.category for chosen in selected) < category_caps[item.source.category]
+        )
+
     # Reserve room for the kinds of evidence requested by the team.
     for predicate in (
         lambda x: x.source.category == "news" and x.source.region == "CN",
         lambda x: x.source.category == "news" and x.source.region == "GLOBAL",
+        lambda x: x.source.category == "release",
         lambda x: x.source.category == "official",
         lambda x: x.source.category == "paper",
         lambda x: x.source.category == "podcast",
         lambda x: x.source.category == "conference",
     ):
-        match = next((item for item in unique if predicate(item) and item not in used), None)
-        if match and len(selected) < limit:
+        match = next((item for item in unique if predicate(item) and has_room(item)), None)
+        if match:
             selected.append(match)
             used.add(match)
     for item in unique:
         if len(selected) >= limit:
             break
-        if item not in used and sum(chosen.source.id == item.source.id for chosen in selected) < 2:
+        if has_room(item):
             selected.append(item)
             used.add(item)
     return selected

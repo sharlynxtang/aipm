@@ -28,6 +28,34 @@
     "url": "https://huggingface.co/blog/feed.xml"
   },
   {
+    "id": "vllm_releases",
+    "name": "vLLM Releases",
+    "category": "release",
+    "region": "GLOBAL",
+    "url": "https://github.com/vllm-project/vllm/releases.atom"
+  },
+  {
+    "id": "sglang_releases",
+    "name": "SGLang Releases",
+    "category": "release",
+    "region": "GLOBAL",
+    "url": "https://github.com/sgl-project/sglang/releases.atom"
+  },
+  {
+    "id": "transformers_releases",
+    "name": "Transformers Releases",
+    "category": "release",
+    "region": "GLOBAL",
+    "url": "https://github.com/huggingface/transformers/releases.atom"
+  },
+  {
+    "id": "ollama_releases",
+    "name": "Ollama Releases",
+    "category": "release",
+    "region": "GLOBAL",
+    "url": "https://github.com/ollama/ollama/releases.atom"
+  },
+  {
     "id": "latent_space",
     "name": "Latent Space（播客与分析）",
     "category": "podcast",

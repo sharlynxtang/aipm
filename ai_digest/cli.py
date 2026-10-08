@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,12 +41,14 @@ def main(argv: list[str] | None = None) -> int:
 
     items = []
     failed = []
-    for source in sources:
-        try:
-            items.extend(fetch_source(source, args.fixture_dir))
-        except Exception as error:  # A failed feed must not conceal successful sources.
-            failed.append(source.name)
-            print(f"source {source.id} failed: {error}", file=sys.stderr)
+    with ThreadPoolExecutor(max_workers=min(4, len(sources))) as pool:
+        futures = [(source, pool.submit(fetch_source, source, args.fixture_dir)) for source in sources]
+        for source, future in futures:
+            try:
+                items.extend(future.result())
+            except Exception as error:  # A failed feed must not conceal successful sources.
+                failed.append(source.name)
+                print(f"source {source.id} failed: {error}", file=sys.stderr)
     succeeded = len(sources) - len(failed)
     if not succeeded:
         print("No sources could be fetched; no digest was sent.", file=sys.stderr)

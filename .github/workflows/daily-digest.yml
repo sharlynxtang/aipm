@@ -29,8 +29,6 @@ jobs:
             echo '::error::FEISHU_WEBHOOK_TOKEN is missing from GitHub Actions secrets.'
             exit 1
           fi
-      - name: Check source collection
-        run: python -m ai_digest > /dev/null
       - name: Send daily briefing
         env:
           FEISHU_WEBHOOK_TOKEN: ${{ secrets.FEISHU_WEBHOOK_TOKEN }}
