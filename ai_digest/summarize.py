@@ -79,7 +79,8 @@ def summarize_items(items: list[Item], token: str) -> list[Item]:
                 try:
                     result = json.loads(body)
                 except ValueError:
-                    raise SummaryError(f"GitHub Models returned non-JSON content ({content_type}, {len(body)} bytes)") from None
+                    marker = body.hex() if len(body) <= 8 else "long response"
+                    raise SummaryError(f"GitHub Models returned non-JSON content ({content_type}, {len(body)} bytes, marker {marker})") from None
             break
         except HTTPError as error:
             if error.code in {429, 500, 502, 503, 504} and attempt == 0:
