@@ -9,8 +9,8 @@
 ```bash
 cd /workspace/aipm
 python3 -m ai_digest                 # 抓取并预览；无模型密钥时显示来源摘录
-OPENAI_API_KEY=... python3 -m ai_digest # 预览逐条中文摘要
-FEISHU_WEBHOOK_TOKEN=... OPENAI_API_KEY=... python3 -m ai_digest --send
+DEEPSEEK_API_KEY=... python3 -m ai_digest # 预览逐条中文摘要
+FEISHU_WEBHOOK_TOKEN=... DEEPSEEK_API_KEY=... python3 -m ai_digest --send
 python3 -m unittest discover -s tests -v
 ```
 
@@ -18,7 +18,7 @@ python3 -m unittest discover -s tests -v
 
 `.github/workflows/daily-digest.yml` 在每天北京时间 11:00 触发，也支持在 GitHub Actions 页面手动运行并立即推送。还可以显式推送一个 `run-digest-*` 标签来立即触发，例如 `git tag run-digest-20261008T1100 && git push origin run-digest-20261008T1100`；每次使用新的标签名。要启用发送，先把代码推到仓库默认分支 `main`，再在 GitHub 仓库的 Actions secrets 中配置 `FEISHU_WEBHOOK_TOKEN`。GitHub 定时任务可能延迟启动。云环境中的变量与 GitHub Actions secrets 分别配置。飞书自定义群机器人只能接收 Webhook 推送，不能响应群内 `@机器人` 命令；若需要群内命令，需要另建飞书应用机器人和公开可达的事件接收服务。
 
-发送前，工作流使用 OpenAI 的 `gpt-4o-mini` 为每条入选资讯生成一句中文摘要。需在仓库 **Settings → Secrets and variables → Actions → Secrets → New repository secret** 新增 `OPENAI_API_KEY`，值填写 OpenAI API key。不要将密钥写入代码或聊天。默认接口是 `https://api.openai.com/v1/chat/completions`；只有改用其他 OpenAI 兼容服务时，才需要在同一页面的 **Variables** 设置 `DIGEST_LLM_API_URL`（完整的 chat completions HTTPS 地址）和 `DIGEST_LLM_MODEL`（模型名）。GitHub Models 已退役，工作流不能使用自动提供的 `GITHUB_TOKEN` 生成摘要。
+发送前，工作流使用 DeepSeek 的 `deepseek-chat` 为每条入选资讯生成一句中文摘要。需在仓库 **Settings → Secrets and variables → Actions → Secrets → New repository secret** 新增 `DEEPSEEK_API_KEY`，值填写 DeepSeek API key。不要将密钥写入代码或聊天。接口是 `https://api.deepseek.com/chat/completions`。GitHub Models 已退役，工作流不能使用自动提供的 `GITHUB_TOKEN` 生成摘要。
 
 摘要只使用来源名称、标题和最多 400 字的 RSS/Atom 摘录；摘录不足时会提示查看原文。模型返回缺失、非中文或格式错误的摘要时，本次任务失败并且不推送不完整日报。只有 Feishu 推送会强制要求全部摘要；没有模型密钥的本地预览仍显示来源摘录，便于检查抓取结果。
 

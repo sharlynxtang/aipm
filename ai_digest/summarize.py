@@ -12,8 +12,8 @@ from urllib.request import Request, urlopen
 from .core import Item
 
 
-ENDPOINT = "https://api.openai.com/v1/chat/completions"
-MODEL = "gpt-4o-mini"
+ENDPOINT = "https://api.deepseek.com/chat/completions"
+MODEL = "deepseek-chat"
 
 
 class SummaryError(Exception):
@@ -43,7 +43,7 @@ def summarize_items(items: list[Item], token: str, endpoint: str = ENDPOINT, mod
     if not items:
         return items
     if not token:
-        raise SummaryError("OPENAI_API_KEY is required to generate Chinese summaries")
+        raise SummaryError("DEEPSEEK_API_KEY is required to generate Chinese summaries")
     source_data = [
         {"id": index, "source": item.source.name, "title": item.title, "excerpt": item.summary[:400]}
         for index, item in enumerate(items)
