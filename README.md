@@ -15,7 +15,7 @@ python3 -m unittest discover -s tests -v
 
 在飞书群添加**自定义机器人**，从 Webhook URL `https://open.feishu.cn/open-apis/bot/v2/hook/<token>` 中取出 `<token>`，以 `FEISHU_WEBHOOK_TOKEN` 注入。不要把完整 Webhook 或 token 提交到仓库。机器人若启用签名校验，此版本尚不支持；可使用仅绑定群且妥善保管的 Webhook token，并按飞书管理要求配置安全策略。
 
-`.github/workflows/daily-digest.yml` 在每天北京时间 11:00 触发，也支持在 GitHub Actions 页面手动运行并立即推送。要启用定时发送，先把代码推到仓库默认分支 `main`，再在 GitHub 仓库的 Actions secrets 中配置 `FEISHU_WEBHOOK_TOKEN`。GitHub 定时任务可能延迟启动。云环境中的变量与 GitHub Actions secrets 分别配置。飞书自定义群机器人只能接收 Webhook 推送，不能响应群内 `@机器人` 命令；若需要群内命令，需要另建飞书应用机器人和公开可达的事件接收服务。
+`.github/workflows/daily-digest.yml` 在每天北京时间 11:00 触发，也支持在 GitHub Actions 页面手动运行并立即推送。还可以显式推送一个 `run-digest-*` 标签来立即触发，例如 `git tag run-digest-20261008T1100 && git push origin run-digest-20261008T1100`；每次使用新的标签名。要启用发送，先把代码推到仓库默认分支 `main`，再在 GitHub 仓库的 Actions secrets 中配置 `FEISHU_WEBHOOK_TOKEN`。GitHub 定时任务可能延迟启动。云环境中的变量与 GitHub Actions secrets 分别配置。飞书自定义群机器人只能接收 Webhook 推送，不能响应群内 `@机器人` 命令；若需要群内命令，需要另建飞书应用机器人和公开可达的事件接收服务。
 
 ## 数据源与筛选
 

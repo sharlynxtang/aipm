@@ -5,6 +5,10 @@ on:
     # 11:00 China/Singapore time. GitHub may start scheduled runs late.
     - cron: '0 3 * * *'
   workflow_dispatch:
+  push:
+    # An explicit tag push can trigger a delivery when GitHub API access is unavailable.
+    tags:
+      - 'run-digest-*'
 
 permissions:
   contents: read
