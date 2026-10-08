@@ -79,11 +79,12 @@ def summarize_items(items: list[Item], token: str) -> list[Item]:
                 time.sleep(2)
                 continue
             raise SummaryError(f"GitHub Models request failed (HTTP {error.code})") from None
-        except (OSError, URLError, ValueError):
+        except (OSError, ValueError) as error:
             if attempt == 0:
                 time.sleep(2)
                 continue
-            raise SummaryError("GitHub Models request failed; check network and model access") from None
+            reason = str(getattr(error, "reason", error)).replace(token, "[redacted]")[:160]
+            raise SummaryError(f"GitHub Models request failed ({type(error).__name__}: {reason})") from None
     try:
         content = result["choices"][0]["message"]["content"]
         summaries = _validate(json.loads(content), len(items))
