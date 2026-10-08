@@ -8,14 +8,17 @@
 
 ```bash
 cd /workspace/aipm
-python3 -m ai_digest                 # 抓取并在终端预览，不发送
-FEISHU_WEBHOOK_TOKEN=... python3 -m ai_digest --send
+python3 -m ai_digest                 # 抓取并预览；无 GITHUB_TOKEN 时显示来源摘录
+GITHUB_TOKEN=... python3 -m ai_digest # 预览逐条中文摘要
+FEISHU_WEBHOOK_TOKEN=... GITHUB_TOKEN=... python3 -m ai_digest --send
 python3 -m unittest discover -s tests -v
 ```
 
 在飞书群添加**自定义机器人**，从 Webhook URL `https://open.feishu.cn/open-apis/bot/v2/hook/<token>` 中取出 `<token>`，以 `FEISHU_WEBHOOK_TOKEN` 注入。不要把完整 Webhook 或 token 提交到仓库。机器人若启用签名校验，此版本尚不支持；可使用仅绑定群且妥善保管的 Webhook token，并按飞书管理要求配置安全策略。
 
 `.github/workflows/daily-digest.yml` 在每天北京时间 11:00 触发，也支持在 GitHub Actions 页面手动运行并立即推送。还可以显式推送一个 `run-digest-*` 标签来立即触发，例如 `git tag run-digest-20261008T1100 && git push origin run-digest-20261008T1100`；每次使用新的标签名。要启用发送，先把代码推到仓库默认分支 `main`，再在 GitHub 仓库的 Actions secrets 中配置 `FEISHU_WEBHOOK_TOKEN`。GitHub 定时任务可能延迟启动。云环境中的变量与 GitHub Actions secrets 分别配置。飞书自定义群机器人只能接收 Webhook 推送，不能响应群内 `@机器人` 命令；若需要群内命令，需要另建飞书应用机器人和公开可达的事件接收服务。
+
+发送前，工作流使用自动提供的 `GITHUB_TOKEN` 调用 GitHub Models (`openai/gpt-4o-mini`)，为每条入选资讯生成一句中文摘要。工作流已声明 `models: read` 权限；无需另建模型密钥。摘要只使用来源名称、标题和最多 400 字的 RSS/Atom 摘录；摘录不足时会提示查看原文。模型返回缺失、非中文或格式错误的摘要时，本次任务失败并且不推送不完整日报。GitHub Models 的可用性与额度取决于仓库所属账户；若任务提示模型访问失败，请检查 Actions 日志及账户的 Models 权限。只有 Feishu 推送会强制要求全部摘要；没有 `GITHUB_TOKEN` 的本地预览仍显示来源摘录，便于检查抓取结果。
 
 ## 数据源与筛选
 

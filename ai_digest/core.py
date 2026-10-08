@@ -48,6 +48,7 @@ class Item:
     signals: tuple[str, ...]
     score: int
     guid: str = ""
+    chinese_summary: str = ""
 
 
 class _Text(HTMLParser):

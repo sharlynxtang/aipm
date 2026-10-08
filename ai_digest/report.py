@@ -26,9 +26,12 @@ def _safe(value: str) -> str:
     return re.sub(r"([\\`*_\[\]()])", r"\\\1", value).replace("\n", " ")
 
 
-def render_report(items: list[Item], now: datetime, succeeded: int, total: int, failed: list[str]) -> str:
+def render_report(items: list[Item], now: datetime, succeeded: int, total: int, failed: list[str], require_summaries: bool = False) -> str:
+    if require_summaries and any(not item.chinese_summary for item in items):
+        raise ValueError("every selected item needs a Chinese summary before delivery")
     date = now.astimezone(LOCAL_TZ).strftime("%Y-%m-%d")
-    lines = [f"**每日 AI 情报｜{date}**", "面向开源模型产品经理与战略经理；摘要只依据来源原文。"]
+    note = "中文摘要依据来源标题与订阅摘录生成；请点原文核查。" if require_summaries else "预览显示来源摘录；发送时生成逐条中文摘要。"
+    lines = [f"**每日 AI 情报｜{date}**", f"面向开源模型产品经理与战略经理；{note}"]
 
     counts = Counter(signal for item in items for signal in item.signals)
     if counts:
@@ -67,8 +70,10 @@ def render_report(items: list[Item], now: datetime, succeeded: int, total: int, 
         for item in section:
             published = item.published.astimezone(LOCAL_TZ).strftime("%m-%d %H:%M")
             lines.append(f"• [{_safe(item.title)}]({item.url}) · {_safe(item.source.name)} · {published}")
-            if item.summary:
-                lines.append(f"  {_safe(item.summary[:140])}")
+            if item.chinese_summary:
+                lines.append(f"  摘要：{_safe(item.chinese_summary)}")
+            elif item.summary and not require_summaries:
+                lines.append(f"  来源摘录：{_safe(item.summary[:140])}")
 
     lines.append(f"\n来源抓取：{succeeded}/{total} 成功。")
     if failed:

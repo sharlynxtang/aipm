@@ -12,6 +12,7 @@ from pathlib import Path
 from .core import fetch_source, load_sources, select_items
 from .feishu import send_card, webhook_url
 from .report import render_report
+from .summarize import SummaryError, summarize_items
 
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "sources.json"
@@ -55,14 +56,21 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     selected = select_items(items, now, args.hours, args.limit)
-    report = render_report(selected, now, succeeded, len(sources), failed)
+    token = os.environ.get("FEISHU_WEBHOOK_TOKEN")
+    if args.send and not token:
+        print("FEISHU_WEBHOOK_TOKEN is required for --send.", file=sys.stderr)
+        return 2
+    model_token = os.environ.get("GITHUB_TOKEN")
+    if selected and (args.send or model_token):
+        try:
+            selected = summarize_items(selected, model_token or "")
+        except SummaryError as error:
+            print(f"Chinese summaries failed; no digest was sent: {error}", file=sys.stderr)
+            return 2
+    report = render_report(selected, now, succeeded, len(sources), failed, require_summaries=args.send or bool(model_token and selected))
     if not args.send:
         print(report)
         return 0
-    token = os.environ.get("FEISHU_WEBHOOK_TOKEN")
-    if not token:
-        print("FEISHU_WEBHOOK_TOKEN is required for --send.", file=sys.stderr)
-        return 2
     try:
         send_card(webhook_url(token), report)
     except Exception as error:

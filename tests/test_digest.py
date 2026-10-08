@@ -12,6 +12,7 @@ from ai_digest.cli import main
 from ai_digest.core import Source, canonical_url, classify, load_sources, parse_feed, select_items
 from ai_digest.feishu import send_card, webhook_url
 from ai_digest.report import render_report
+from ai_digest.summarize import SummaryError, _validate, summarize_items
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -95,6 +96,68 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(send.call_count, 1)
         self.assertIn("没有符合条件的新条目", send.call_args.args[1])
+
+    def test_send_stops_when_any_summary_is_missing(self):
+        source = Source("news", "News", "news", "CN", "https://example.com/news")
+        item = parse_feed((FIXTURES / "sample_news.xml").read_bytes(), source)[0]
+        with patch("ai_digest.cli.fetch_source", return_value=[item]), patch("ai_digest.cli.send_card") as send, patch.dict(os.environ, {"FEISHU_WEBHOOK_TOKEN": "test-token", "GITHUB_TOKEN": "test-model-token"}), patch("ai_digest.cli.summarize_items", side_effect=SummaryError("incomplete")):
+            code = main(["--send", "--config", str(FIXTURES / "sources.json"), "--now", NOW.isoformat()])
+        self.assertEqual(code, 2)
+        send.assert_not_called()
+
+    def test_complete_chinese_summaries_are_rendered_under_each_item(self):
+        news = Source("news", "News", "news", "CN", "https://example.com/news")
+        paper = Source("paper", "Paper", "paper", "GLOBAL", "https://example.com/paper")
+        items = [parse_feed((FIXTURES / name).read_bytes(), source)[0] for name, source in (("sample_news.xml", news), ("sample_paper.xml", paper))]
+        translated = [replace(item, chinese_summary=f"这条资讯来自{item.source.name}，详情请查看原文。") for item in items]
+        report = render_report(translated, NOW, 2, 2, [], require_summaries=True)
+        self.assertEqual(report.count("摘要："), 2)
+        self.assertNotIn("来源摘录：", report)
+        with self.assertRaises(ValueError):
+            render_report(items, NOW, 2, 2, [], require_summaries=True)
+
+
+class SummaryTests(unittest.TestCase):
+    def test_model_response_validation_requires_complete_chinese_rows(self):
+        self.assertEqual(_validate({"summaries": [{"id": 1, "summary": "第二条资讯摘要。"}, {"id": 0, "summary": "第一条资讯摘要。"}]}, 2), ["第一条资讯摘要。", "第二条资讯摘要。"])
+        for rows in ([{"id": 0, "summary": "Only English"}], [{"id": 0, "summary": "第一条。"}, {"id": 0, "summary": "重复。"}], []):
+            with self.assertRaises(SummaryError):
+                _validate({"summaries": rows}, 2)
+
+    def test_model_request_sends_only_feed_evidence_and_renders_chinese(self):
+        source = Source("paper", "论文", "paper", "GLOBAL", "https://example.com/papers")
+        item = parse_feed((FIXTURES / "sample_paper.xml").read_bytes(), source)[0]
+
+        class Handler(BaseHTTPRequestHandler):
+            received = None
+
+            def do_POST(self):
+                self.__class__.received = {"authorization": self.headers["Authorization"], "body": json.loads(self.rfile.read(int(self.headers["Content-Length"]))) }
+                result = {"choices": [{"message": {"content": json.dumps({"summaries": [{"id": 0, "summary": "该论文评测开源权重模型的推理成本。"}]}, ensure_ascii=False)}}]}
+                body = json.dumps(result).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_args):
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch("ai_digest.summarize.ENDPOINT", f"http://127.0.0.1:{server.server_port}/summarize"):
+                enriched = summarize_items([item], "test-model-token")
+            self.assertEqual(enriched[0].chinese_summary, "该论文评测开源权重模型的推理成本。")
+            self.assertEqual(Handler.received["authorization"], "Bearer test-model-token")
+            evidence = json.loads(Handler.received["body"]["messages"][1]["content"])
+            self.assertEqual(evidence[0]["title"], item.title)
+            self.assertEqual(evidence[0]["excerpt"], item.summary)
+        finally:
+            server.shutdown()
+            thread.join()
+            server.server_close()
 
 
 class _WebhookHandler(BaseHTTPRequestHandler):
