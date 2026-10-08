@@ -66,6 +66,8 @@ def main(argv: list[str] | None = None) -> int:
             selected = summarize_items(selected, model_token or "")
         except SummaryError as error:
             print(f"Chinese summaries failed; no digest was sent: {error}", file=sys.stderr)
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::error::Chinese summaries failed: {error}")
             return 2
     report = render_report(selected, now, succeeded, len(sources), failed, require_summaries=args.send or bool(model_token and selected))
     if not args.send:
