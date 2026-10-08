@@ -72,14 +72,21 @@ def summarize_items(items: list[Item], token: str) -> list[Item]:
     for attempt in range(2):
         try:
             with urlopen(request, timeout=45) as response:
-                result = json.load(response)
+                body = response.read(1_000_001)
+                content_type = response.headers.get("Content-Type", "unknown").split(";", 1)[0]
+                if len(body) > 1_000_000:
+                    raise SummaryError("GitHub Models response exceeded 1 MB")
+                try:
+                    result = json.loads(body)
+                except ValueError:
+                    raise SummaryError(f"GitHub Models returned non-JSON content ({content_type}, {len(body)} bytes)") from None
             break
         except HTTPError as error:
             if error.code in {429, 500, 502, 503, 504} and attempt == 0:
                 time.sleep(2)
                 continue
             raise SummaryError(f"GitHub Models request failed (HTTP {error.code})") from None
-        except (OSError, ValueError) as error:
+        except OSError as error:
             if attempt == 0:
                 time.sleep(2)
                 continue
